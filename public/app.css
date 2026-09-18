@@ -125,14 +125,14 @@ body.dragging #target { border-color: var(--riso); }
 #scroller::-webkit-scrollbar { display: none; }
 
 #strip { position: relative; margin: 0 auto; user-select: none; -webkit-user-select: none; }
-#strip img {
+#strip img, #strip canvas {
   position: absolute;
   left: 0;
   width: 100%;
   display: block;
   background: #0C0A11;
 }
-#strip.paged img { width: auto; background: none; }
+#strip.paged img, #strip.paged canvas { width: auto; background: none; }
 
 #end {
   position: absolute;

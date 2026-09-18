@@ -92,9 +92,61 @@ function measure() {
 }
 
 function clearPages() {
-  for (const [, img] of R.mounted) img.remove();
+  for (const [, el] of R.mounted) el.remove();
   R.mounted.clear();
-  strip.querySelectorAll('img').forEach(i => i.remove());
+  strip.querySelectorAll('img, canvas').forEach(el => el.remove());
+}
+
+// ---------- sharper scaling ----------
+
+let sharpening = store.get('sharpen') !== false;
+let paintTimer = null;
+
+// Replaces a page with a canvas holding an EWA Lanczos resample of it. Only bites when
+// the art is being magnified; see lanczos.js for why shrinking is left to the browser.
+function paint(i, cssW, cssH) {
+  const el = R.mounted.get(i);
+  if (!sharpening || !el || !R.ch || !(cssW > 0) || !(cssH > 0)) return;
+
+  const page = R.ch.pages[i];
+  const dpr = window.devicePixelRatio || 1;
+  const outW = Math.round(cssW * dpr);
+  const outH = Math.round(cssH * dpr);
+  if (!Lanczos.wants(page.w, page.h, outW, outH)) return;
+  if (el.tagName === 'CANVAS' && el.width === outW && el.height === outH) return;
+
+  const source = el.tagName === 'CANVAS' ? el._source : el;
+  if (!source) return;
+
+  source.decode().then(() => {
+    if (R.mounted.get(i) !== el) return;          // scrolled away while it decoded
+    const rendered = Lanczos.render(source, page.w, page.h, outW, outH);
+    if (!rendered) return;
+
+    let target = el;
+    if (target.tagName !== 'CANVAS') {
+      target = document.createElement('canvas');
+      target.style.cssText = el.style.cssText;
+      target._source = el;                        // kept so a zoom can redraw it
+      el.replaceWith(target);
+      R.mounted.set(i, target);
+    }
+    target.width = outW;
+    target.height = outH;
+    target.getContext('2d').drawImage(rendered, 0, 0);
+  }).catch(() => { /* decode can reject if it is removed first */ });
+}
+
+// A zoom changes the box, so the canvas has to be redrawn at the new size or the browser
+// scales our output a second time. Waits for the gesture to settle first.
+function paintSoon() {
+  clearTimeout(paintTimer);
+  paintTimer = setTimeout(() => {
+    for (const [i, el] of [...R.mounted]) {
+      paint(i, isStrip() ? R.colW : parseFloat(el.style.width),
+               isStrip() ? R.heights[i] : parseFloat(el.style.height));
+    }
+  }, 280);
 }
 
 function enterMode(mode, saved, remember) {
@@ -193,6 +245,7 @@ function mount(i) {
   img.src = pageUrl(R.ch.path, i);
   strip.appendChild(img);
   R.mounted.set(i, img);
+  paint(i, R.colW, R.heights[i]);
 }
 
 function render() {
@@ -231,7 +284,8 @@ function showPage(n) {
     }
   }
 
-  fitPage();
+  const box = fitPage();
+  if (box) paint(R.at, box.w, box.h);
   scroller.scrollTop = Math.max(0, (strip.offsetHeight - R.vh) / 2);
   scroller.scrollLeft = Math.max(0, (strip.offsetWidth - R.vw) / 2);
   setWidthReadout();
@@ -395,6 +449,7 @@ function setWidth(pct, ax, ay) {
     scroller.scrollTop = R.offsets[i] + withinPage * R.heights[i] - ay;
     scroller.scrollLeft = centreX * R.colW - R.vw / 2;
     render();
+    paintSoon();
   } else {
     // Hold whatever sits under the pointer still while the page grows around it.
     const img = R.mounted.get(R.at);
@@ -410,6 +465,7 @@ function setWidth(pct, ax, ay) {
       scroller.scrollTop = box.top + from.fy * box.h - ay;
     }
     updateHud();
+    paintSoon();
   }
   setWidthReadout();
 }
@@ -553,6 +609,14 @@ window.addEventListener('keydown', e => {
   else if (k === 'End') { hit(); isStrip() ? scroller.scrollTo({ top: R.total, behavior: 'smooth' }) : goToPage(R.ch.pages.length); }
   else if (k === 'f') { show(); $('#full').click(); }
   else if (k === 'm') { show(); toggleMode(); }
+  else if (k === 'l') {
+    show();
+    sharpening = !sharpening;
+    store.set('sharpen', sharpening);
+    const here = currentPage();
+    clearPages();
+    if (isStrip()) render(); else showPage(here);
+  }
   else if (k === 'Escape' && !document.fullscreenElement) { hit(); goBack(); }
   else if (k === '+' || k === '=') { show(); setWidth(R.pct + 10); }
   else if (k === '-') { show(); setWidth(R.pct - 10); }

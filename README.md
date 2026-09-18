@@ -19,7 +19,8 @@ Open a chapter with **Open a chapter** or by dropping a `.cbz` on the page.
 - **Pages**: one page at a time, fitted to the screen.
 
 The mode is picked from the page shapes; press **m** to switch, and that choice is
-remembered for the folder.
+remembered for the folder. Upscaled art is sharpened with a Lanczos filter; press **l**
+to turn it off.
 
 | key | |
 | --- | --- |
@@ -27,6 +28,7 @@ remembered for the folder.
 | ← → | previous, next page |
 | m | strip or pages |
 | f | fullscreen |
+| l | sharper scaling on or off |
 | [ ] | previous, next chapter |
 | + - 0 | wider, narrower, reset |
 | home, end | start, end of chapter |
