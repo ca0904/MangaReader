@@ -7,9 +7,16 @@ const cbz = require('./lib/cbz');
 const { size } = require('./lib/imgsize');
 
 const PORT = Number(process.env.PORT) || 4173;
+
 const START_DIR = path.resolve(process.argv[2] || path.join(__dirname, '..'));
 let lastDir = START_DIR;      // the dialog reopens where you last opened something
 const DROPPED = path.join(os.tmpdir(), 'strip-dropped');
+
+// Every path the client asks for has to resolve inside one of these. The library root is
+// the boundary, not "any .cbz the client can name a path to".
+fs.mkdirSync(DROPPED, { recursive: true });
+const real = p => { try { return fs.realpathSync(p); } catch { return path.resolve(p); } };
+const ROOTS = [real(START_DIR), real(DROPPED)];
 
 // Scrolling a chapter fires one request per page; keeping a few archives open avoids
 // re-reading the central directory every time.
@@ -31,10 +38,19 @@ function useZip(file) {
 
 const natural = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
 
-function isChapter(p) {
+// Returns the one canonical path for a chapter, or null if it is not one we may serve.
+// Canonical matters beyond safety: the path is the key progress is saved under, so the
+// same file reached by two spellings must not become two half-read chapters.
+function resolveChapter(p) {
+  if (typeof p !== 'string' || !p.toLowerCase().endsWith('.cbz')) return null;
   try {
-    return typeof p === 'string' && p.toLowerCase().endsWith('.cbz') && fs.statSync(p).isFile();
-  } catch { return false; }
+    // resolved through symlinks, or a link inside the library could point anywhere
+    const file = real(path.resolve(p));
+    if (!fs.statSync(file).isFile()) return null;
+    return ROOTS.some(root => file === root || file.startsWith(root + path.sep)) ? file : null;
+  } catch {
+    return null;
+  }
 }
 
 function chapter(file) {
@@ -108,7 +124,7 @@ function body(req) {
   });
 }
 
-const server = http.createServer(async (req, res) => {
+const handler = async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   const file = url.searchParams.get('path');
 
@@ -123,14 +139,16 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url.pathname === '/api/chapter') {
-      if (!isChapter(file)) return json(res, { error: 'not a .cbz file' }, 404);
-      lastDir = path.dirname(file);
-      return json(res, chapter(file));
+      const chapterFile = resolveChapter(file);
+      if (!chapterFile) return json(res, { error: 'not a .cbz file' }, 404);
+      lastDir = path.dirname(chapterFile);
+      return json(res, chapter(chapterFile));
     }
 
     if (url.pathname === '/api/page') {
-      if (!isChapter(file)) return json(res, { error: 'not a .cbz file' }, 404);
-      const z = useZip(file);
+      const pageFile = resolveChapter(file);
+      if (!pageFile) return json(res, { error: 'not a .cbz file' }, 404);
+      const z = useZip(pageFile);
       const entry = z.pages[Number(url.searchParams.get('n'))];
       if (!entry) return json(res, { error: 'no such page' }, 404);
       const buf = cbz.read(z.zip, entry);
@@ -146,7 +164,6 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/drop' && req.method === 'POST') {
       const name = path.basename(url.searchParams.get('name') || '');
       if (!name.toLowerCase().endsWith('.cbz')) return json(res, { error: 'not a .cbz file' }, 400);
-      fs.mkdirSync(DROPPED, { recursive: true });
       const dest = path.join(DROPPED, name);
       fs.writeFileSync(dest, await body(req));
       openZips.delete(dest);
@@ -164,9 +181,10 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     json(res, { error: String(err && err.message || err) }, 500);
   }
-});
+};
 
-server.listen(PORT, '127.0.0.1', () => {
+http.createServer(handler).listen(PORT, '127.0.0.1', () => {
   console.log('Manga Reader is reading from ' + START_DIR);
+  console.log('Nothing outside that folder can be served.');
   console.log('Open http://localhost:' + PORT);
 });

@@ -8,8 +8,8 @@ A reader for `.cbz` chapters, for manga and long-strip manhwa.
 
 Open http://localhost:4173. No dependencies, no build step.
 
-The library folder defaults to the folder above this one. Previous and Next walk the
-chapter's own folder.
+The library folder defaults to the folder above this one. Only `.cbz` files inside it
+can be opened by path, and Previous and Next walk the chapter's own folder.
 
 ## Reading
 
