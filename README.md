@@ -18,7 +18,8 @@ Open a chapter with **Open a chapter** or by dropping a `.cbz` on the page.
 - **Strip**: one continuous scroll, for webtoons.
 - **Pages**: one page at a time, fitted to the screen.
 
-Press **m** to switch between them; that choice is remembered for the folder.
+The mode is picked from the page shapes; press **m** to switch, and that choice is
+remembered for the folder.
 
 | key | |
 | --- | --- |

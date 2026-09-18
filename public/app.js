@@ -61,7 +61,7 @@ async function openChapter(file) {
   clearPages();
   R.ch = ch;
   nextPreloaded = null;
-  R.mode = store.get('mode:' + ch.folder) || 'strip';
+  R.mode = store.get('mode:' + ch.folder) || ch.suggest || 'strip';
 
   launch.hidden = true;
   reader.hidden = false;
@@ -97,9 +97,9 @@ function clearPages() {
   strip.querySelectorAll('img').forEach(i => i.remove());
 }
 
-function enterMode(mode, saved) {
+function enterMode(mode, saved, remember) {
   R.mode = mode;
-  store.set('mode:' + R.ch.folder, mode);
+  if (remember) store.set('mode:' + R.ch.folder, mode);
   strip.classList.toggle('paged', mode === 'page');
   $('#mode').textContent = mode === 'strip' ? 'Read as pages' : 'Read as strip';
   clearPages();
@@ -121,7 +121,7 @@ function enterMode(mode, saved) {
 }
 
 function toggleMode() {
-  enterMode(isStrip() ? 'page' : 'strip', { page: currentPage(), usePage: true });
+  enterMode(isStrip() ? 'page' : 'strip', { page: currentPage(), usePage: true }, true);
 }
 
 function currentPage() {
