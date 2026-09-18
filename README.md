@@ -1,0 +1,32 @@
+# Manga Reader
+
+A reader for `.cbz` chapters, for manga and long-strip manhwa.
+
+## Running it
+
+    node server.js [library folder]
+
+Open http://localhost:4173. No dependencies, no build step.
+
+The library folder defaults to the folder above this one. Previous and Next walk the
+chapter's own folder.
+
+## Reading
+
+Open a chapter with **Open a chapter** or by dropping a `.cbz` on the page.
+
+- **Strip**: one continuous scroll, for webtoons.
+- **Pages**: one page at a time, fitted to the screen.
+
+Press **m** to switch between them; that choice is remembered for the folder.
+
+| key | |
+| --- | --- |
+| space | scroll on, or next page |
+| ← → | previous, next page |
+| m | strip or pages |
+| f | fullscreen |
+| [ ] | previous, next chapter |
+| + - 0 | wider, narrower, reset |
+| home, end | start, end of chapter |
+| escape | close the chapter |

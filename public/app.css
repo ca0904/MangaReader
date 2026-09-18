@@ -1,0 +1,262 @@
+:root {
+  --ink: #16141C;
+  --ink-2: #1F1C29;
+  --void: #000000;
+  --paper: #EDE8DF;
+  --muted: #8A8396;
+  --riso: #FF4FA3;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: 'Archivo', 'Helvetica Neue', system-ui, sans-serif;
+  font-variation-settings: 'wdth' 100;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, output { font: inherit; color: inherit; }
+
+button {
+  background: none;
+  border: 1px solid rgba(237, 232, 223, .2);
+  border-radius: 3px;
+  padding: 6px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+button:hover { border-color: rgba(237, 232, 223, .5); }
+button:disabled { opacity: .3; cursor: default; }
+:focus-visible { outline: 2px solid var(--riso); outline-offset: 2px; }
+
+/* ---------- launch ---------- */
+
+#launch {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(40px, 9vw, 130px);
+  padding: 40px;
+  flex-wrap: wrap;
+}
+#launch[hidden] { display: none; }
+
+#intro { max-width: max-content; }
+
+#intro h1 {
+  margin: 0;
+  font-size: clamp(56px, 9vw, 104px);
+  font-variation-settings: 'wdth' 125, 'wght' 700;
+  letter-spacing: -.035em;
+  line-height: .86;
+}
+#pitch {
+  margin: 18px 0 0;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--muted);
+  max-width: 30ch;
+}
+
+#keys { margin: 38px 0 0; display: grid; gap: 7px; max-width: 34ch; }
+#keys div { display: grid; grid-template-columns: 8ch 1fr; gap: 16px; align-items: baseline; }
+#keys dt {
+  font-size: 12px;
+  color: var(--paper);
+  font-variation-settings: 'wdth' 88;
+  background: rgba(237, 232, 223, .08);
+  border-radius: 2px;
+  padding: 2px 6px;
+  justify-self: start;
+}
+#keys dd { margin: 0; font-size: 13px; color: var(--muted); }
+
+#open { margin-top: 30px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+#open p { margin: 0; color: var(--muted); font-size: 13px; }
+#pick { padding: 10px 18px; }
+
+/* The panel column: a strip is what you drop in, so a strip is what marks the spot.
+   Uneven bands, the way slices actually fall. */
+#target {
+  --band: rgba(237, 232, 223, .05);
+  width: 236px;
+  height: min(74vh, 580px);
+  height: min(74dvh, 580px);
+  flex: none;
+  border: 2px dashed rgba(237, 232, 223, .2);
+  border-radius: 3px;
+  background: linear-gradient(to bottom,
+    var(--band) 0 21%, transparent 21% 22.1%,
+    var(--band) 22.1% 37%, transparent 37% 38.1%,
+    var(--band) 38.1% 66%, transparent 66% 67.1%,
+    var(--band) 67.1% 78%, transparent 78% 79.1%,
+    var(--band) 79.1% 100%);
+}
+body.dragging #target { border-color: var(--riso); }
+
+/* ---------- reader ---------- */
+
+#reader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: 100dvh;      /* shrinks with the browser toolbar, so the dock stays reachable */
+  background: var(--void);
+}
+#reader[hidden] { display: none; }
+
+#scroller {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+#scroller::-webkit-scrollbar { display: none; }
+
+#strip { position: relative; margin: 0 auto; user-select: none; -webkit-user-select: none; }
+#strip img {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  display: block;
+  background: #0C0A11;
+}
+#strip.paged img { width: auto; background: none; }
+
+#end {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--muted);
+  text-align: center;
+}
+#end[hidden] { display: none; }
+#end strong {
+  font-variation-settings: 'wdth' 125, 'wght' 700;
+  font-size: 22px;
+  color: var(--paper);
+}
+
+#chrome { position: absolute; inset: 0; pointer-events: none; transition: opacity .28s ease; }
+#chrome > * { pointer-events: auto; }
+#reader.idle #chrome { opacity: 0; }
+#reader.idle #scroller { cursor: none; }
+
+#topbar, #dock {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(22, 20, 28, .74);
+  backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(237, 232, 223, .12);
+  border-radius: 3px;
+  padding: 8px 10px;
+}
+#topbar { top: 16px; left: 16px; }
+#dock { bottom: 16px; left: 16px; }
+
+#now { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#now b { color: var(--paper); font-weight: 500; }
+
+#pct {
+  font-variation-settings: 'wdth' 125, 'wght' 700;
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  min-width: 3.4ch;
+}
+#pages { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; min-width: 12ch; }
+
+#widthctl { display: flex; align-items: center; gap: 6px; }
+#widthctl button { padding: 3px 9px; }
+#width { width: 108px; accent-color: var(--riso); }
+#widthval { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; min-width: 4ch; }
+
+#scrub {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 28px;
+  height: 100%;
+  cursor: pointer;
+  /* Manhwa pages are often white, and a white scale on white art is no scale at all. */
+  background: linear-gradient(to left, rgba(12, 10, 17, .55), transparent);
+}
+#ticks, #filled, #thumb { position: absolute; right: 10px; }
+#ticks { top: 0; bottom: 0; width: 8px; }
+#ticks i { position: absolute; right: 0; width: 5px; height: 1px; background: rgba(237, 232, 223, .3); }
+#filled { top: 0; width: 2px; right: 13px; background: rgba(255, 79, 163, .45); }
+#thumb { width: 9px; right: 9px; background: var(--riso); border-radius: 1px; min-height: 10px; }
+
+#drop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: 100dvh;
+  display: none;
+  place-items: center;
+  background: rgba(12, 10, 17, .92);
+  z-index: 10;
+}
+#drop p {
+  font-variation-settings: 'wdth' 125, 'wght' 700;
+  font-size: 26px;
+  border: 2px dashed var(--riso);
+  padding: 34px 48px;
+  border-radius: 3px;
+}
+body.dragging #drop { display: grid; }
+
+@media (max-width: 760px) {
+  #launch { flex-direction: column; justify-content: center; gap: 34px; padding: 28px 20px; }
+  #target { display: none; }
+
+  /* Edge to edge rather than floating pills, and clear of the home indicator. */
+  #topbar, #dock {
+    left: 0;
+    right: 0;
+    border-radius: 0;
+    border-width: 0;
+    gap: 6px 8px;
+  }
+  #topbar { top: 0; border-bottom: 1px solid rgba(237, 232, 223, .12); }
+  #dock {
+    bottom: 0;
+    border-top: 1px solid rgba(237, 232, 223, .12);
+    flex-wrap: wrap;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  }
+
+  #dock button { padding: 4px 7px; font-size: 13px; }
+  #pct { font-size: 17px; min-width: 3ch; }
+  #pages { min-width: 0; }
+  #reset { display: none; }                 /* double tap does this */
+
+  /* Row one: how far in, and how to read it. Row two: how wide, and which chapter. */
+  #widthctl { order: 5; flex: 1 1 auto; }
+  #width { width: auto; flex: 1 1 60px; min-width: 56px; }
+  #prevch { order: 6; }
+  #nextch { order: 7; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; scroll-behavior: auto !important; }
+}

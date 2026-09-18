@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Manga Reader</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<main id="launch">
+  <div id="intro">
+    <h1>Manga<br>Reader</h1>
+    <p id="pitch">A reader for .cbz chapters, built for the tall vertical kind that never ends.</p>
+
+    <div id="open">
+      <button id="pick" type="button">Open a chapter</button>
+      <p>or drop a .cbz anywhere on this page</p>
+      <input id="file" type="file" accept=".cbz" hidden>
+    </div>
+
+    <dl id="keys">
+      <div><dt>space</dt><dd>keep scrolling, or turn the page</dd></div>
+      <div><dt>m</dt><dd>switch between strip and pages</dd></div>
+      <div><dt>&#8592; &#8594;</dt><dd>turn pages, forwards and back</dd></div>
+      <div><dt>f</dt><dd>fullscreen</dd></div>
+      <div><dt>[ and ]</dt><dd>previous and next chapter</dd></div>
+      <div><dt>0</dt><dd>reset the width</dd></div>
+    </dl>
+  </div>
+
+  <div id="target" aria-hidden="true"></div>
+</main>
+
+<div id="reader" hidden>
+  <div id="scroller">
+    <div id="strip"></div>
+  </div>
+
+  <div id="chrome">
+    <div id="topbar">
+      <button id="back" type="button">Close chapter</button>
+      <span id="now"></span>
+    </div>
+
+    <div id="dock">
+      <span id="pct">0%</span>
+      <span id="pages">page 1 of 1</span>
+      <label id="widthctl">
+        <button id="zoomout" type="button" aria-label="Narrower">–</button>
+        <input id="width" type="range" min="30" max="500" step="1" aria-label="Page width">
+        <button id="zoomin" type="button" aria-label="Wider">+</button>
+        <output id="widthval">100%</output>
+      </label>
+      <button id="mode" type="button">Read as pages</button>
+      <button id="reset" type="button">Reset</button>
+      <button id="full" type="button">Fullscreen</button>
+      <button id="prevch" type="button">Previous</button>
+      <button id="nextch" type="button">Next</button>
+    </div>
+
+    <div id="scrub" role="slider" aria-label="Chapter position" tabindex="0">
+      <div id="ticks"></div>
+      <div id="filled"></div>
+      <div id="thumb"></div>
+    </div>
+  </div>
+</div>
+
+<div id="drop"><p>Drop it anywhere to read</p></div>
+
+<script src="app.js"></script>
+</body>
+</html>
