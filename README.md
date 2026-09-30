@@ -50,3 +50,9 @@ The choice is remembered. Shrinking is always left to the browser.
 | + - 0 | wider, narrower, reset |
 | home, end | start, end of chapter |
 | escape | close the chapter |
+
+## Credits
+
+The ArtCNN weights in `public/artcnn-c4f32.bin` come from
+[ArtCNN](https://github.com/Artoriuz/ArtCNN), MIT licensed; see
+[LICENSES/ArtCNN.txt](LICENSES/ArtCNN.txt).
