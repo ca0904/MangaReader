@@ -107,7 +107,8 @@ const MIME = {
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
   '.webp': 'image/webp', '.gif': 'image/gif', '.avif': 'image/avif',
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8'
+  '.js': 'text/javascript; charset=utf-8',
+  '.bin': 'application/octet-stream'
 };
 
 function json(res, body, code = 200) {
@@ -125,6 +126,12 @@ function body(req) {
 }
 
 const handler = async (req, res) => {
+  // A site open in the browser can point its own name at 127.0.0.1 (DNS rebinding) and
+  // then read our answers as its own. Its requests still carry its name as the Host, so
+  // only localhost is served.
+  const host = (req.headers.host || '').replace(/:\d+$/, '');
+  if (host !== 'localhost' && host !== '127.0.0.1') return json(res, { error: 'forbidden host' }, 403);
+
   const url = new URL(req.url, 'http://localhost');
   const file = url.searchParams.get('path');
 

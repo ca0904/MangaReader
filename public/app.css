@@ -182,6 +182,7 @@ body.dragging #target { border-color: var(--riso); }
   min-width: 3.4ch;
 }
 #pages { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; min-width: 12ch; }
+#scaler { color: var(--muted); font-size: 13px; }
 
 #widthctl { display: flex; align-items: center; gap: 6px; }
 #widthctl button { padding: 3px 9px; }

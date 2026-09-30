@@ -28,7 +28,7 @@
       <div><dt>m</dt><dd>switch between strip and pages</dd></div>
       <div><dt>&#8592; &#8594;</dt><dd>turn pages, forwards and back</dd></div>
       <div><dt>f</dt><dd>fullscreen</dd></div>
-      <div><dt>l</dt><dd>sharper scaling on or off</dd></div>
+      <div><dt>l</dt><dd>scaling: ArtCNN, Lanczos or the browser's own</dd></div>
       <div><dt>[ and ]</dt><dd>previous and next chapter</dd></div>
       <div><dt>0</dt><dd>reset the width</dd></div>
     </dl>
@@ -51,6 +51,7 @@
     <div id="dock">
       <span id="pct">0%</span>
       <span id="pages">page 1 of 1</span>
+      <span id="scaler"></span>
       <label id="widthctl">
         <button id="zoomout" type="button" aria-label="Narrower">–</button>
         <input id="width" type="range" min="30" max="500" step="1" aria-label="Page width">
@@ -75,6 +76,7 @@
 <div id="drop"><p>Drop it anywhere to read</p></div>
 
 <script src="lanczos.js"></script>
+<script src="artcnn.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

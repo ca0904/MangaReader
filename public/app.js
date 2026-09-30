@@ -99,42 +99,177 @@ function clearPages() {
 
 // ---------- sharper scaling ----------
 
-let sharpening = store.get('sharpen') !== false;
+// 'artcnn', 'lanczos' or 'off', cycled with l. Saves from before ArtCNN hold true or false.
+const SCALERS = ['artcnn', 'lanczos', 'off'];
+let scaler = SCALERS.includes(store.get('sharpen')) ? store.get('sharpen')
+  : store.get('sharpen') === false ? 'off' : 'artcnn';
 let paintTimer = null;
 
-// Replaces a page with a canvas holding an EWA Lanczos resample of it. Only bites when
-// the art is being magnified; see lanczos.js for why shrinking is left to the browser.
+ArtCNN.init().then(showScaler);
+showScaler();
+
+// Says which scaling is in effect, which is not always the one chosen: without WebGPU,
+// ArtCNN falls back to Lanczos.
+function showScaler() {
+  $('#scaler').textContent = scaler === 'off' ? 'Browser scaling'
+    : scaler === 'lanczos' || !ArtCNN.available() ? 'Lanczos' : 'ArtCNN';
+}
+
+// Replaces a page with a canvas holding a sharper resample of it: ArtCNN where WebGPU can
+// run it, Lanczos otherwise. Only bites when the art is being magnified; see lanczos.js
+// for why shrinking is left to the browser.
 function paint(i, cssW, cssH) {
   const el = R.mounted.get(i);
-  if (!sharpening || !el || !R.ch || !(cssW > 0) || !(cssH > 0)) return;
+  if (scaler === 'off' || !el || !R.ch || !(cssW > 0) || !(cssH > 0)) return;
 
   const page = R.ch.pages[i];
   const dpr = window.devicePixelRatio || 1;
   const outW = Math.round(cssW * dpr);
   const outH = Math.round(cssH * dpr);
-  if (!Lanczos.wants(page.w, page.h, outW, outH)) return;
-  if (el.tagName === 'CANVAS' && el.width === outW && el.height === outH) return;
+  const kind = scaler === 'artcnn' && ArtCNN.wants(page.w, page.h, outW, outH) ? 'artcnn'
+    : Lanczos.wants(page.w, page.h, outW, outH) ? 'lanczos' : null;
+  if (!kind) return;
+  const want = kind + ' ' + outW + 'x' + outH;
 
   const source = el.tagName === 'CANVAS' ? el._source : el;
   if (!source) return;
 
+  // The newest request for a page wins. ArtCNN takes a GPU round trip, so a zoom can ask
+  // again before the first render is back, and that older one must not land last.
+  if (source._want === want) return;
+  source._want = want;
+  if (kind === 'artcnn' && takeAhead(i, el, source, want)) return kind;
   source.decode().then(() => {
-    if (R.mounted.get(i) !== el) return;          // scrolled away while it decoded
-    const rendered = Lanczos.render(source, page.w, page.h, outW, outH);
-    if (!rendered) return;
+    if (source._want !== want || !showing(i, source)) return;   // scrolled away or superseded
+    if (kind === 'artcnn') return paintArtCNN(i, source, outW, outH, want);
+    paintLanczos(i, source, page, outW, outH);
+  }).catch(() => { if (source._want === want) source._want = null; });
+  return kind;
+}
 
-    let target = el;
-    if (target.tagName !== 'CANVAS') {
-      target = document.createElement('canvas');
-      target.style.cssText = el.style.cssText;
-      target._source = el;                        // kept so a zoom can redraw it
-      el.replaceWith(target);
-      R.mounted.set(i, target);
+// Safari hands some images to the GPU wrongly: a grayscale JPEG with a colour profile came
+// out dark and drawn too large, under both ArtCNN and Lanczos, while the same page as a
+// plain <img> was fine. Drawing it on a 2D canvas goes the way the <img> does, so the
+// scalers are given that instead. One canvas serves every page: both scalers copy from it
+// before they return.
+const flat = document.createElement('canvas');
+function flatten(img) {
+  flat.width = img.naturalWidth;
+  flat.height = img.naturalHeight;
+  flat.getContext('2d').drawImage(img, 0, 0);
+  return flat;
+}
+
+// Whether page i is still on screen as this image, either itself or a canvas drawn from it
+function showing(i, source) {
+  const el = R.mounted.get(i);
+  return !!el && (el === source || el._source === source);
+}
+
+function paintLanczos(i, source, page, outW, outH) {
+  const rendered = Lanczos.render(flatten(source), page.w, page.h, outW, outH);
+  if (!rendered) return;
+
+  const el = R.mounted.get(i);
+  let target = el;
+  // An <img>, or a canvas ArtCNN drew, which cannot take a 2D context
+  if (el._kind !== 'lanczos') {
+    target = document.createElement('canvas');
+    target.style.cssText = el.style.cssText;
+    target._source = source;                      // kept so a zoom can redraw it
+    target._kind = 'lanczos';
+    el.replaceWith(target);
+    R.mounted.set(i, target);
+  }
+  target.width = outW;
+  target.height = outH;
+  target.getContext('2d').drawImage(rendered, 0, 0);
+}
+
+// A WebGPU canvas shows nothing until the GPU is done, and resizing one clears it, so the
+// picture goes into a fresh canvas laid over the page and is swapped in once it is ready.
+// The canvas background is dropped meanwhile, or the page would flash dark as it renders.
+function paintArtCNN(i, source, outW, outH, want) {
+  const target = document.createElement('canvas');
+  target.width = outW;
+  target.height = outH;
+  target.style.cssText = R.mounted.get(i).style.cssText;
+  target.style.background = 'none';
+  target._source = source;
+  target._kind = 'artcnn';
+  R.mounted.get(i).after(target);
+
+  const wanted = () => source._want === want && showing(i, source);
+  return ArtCNN.render(flatten(source), target, wanted).then(ok => {
+    if (source._want !== want || !showing(i, source)) { target.remove(); return; }
+    target.remove();
+    if (!ok) {
+      source._want = 'lanczos ' + outW + 'x' + outH;
+      const page = R.ch.pages[i];
+      if (Lanczos.wants(page.w, page.h, outW, outH)) paintLanczos(i, source, page, outW, outH);
+      return;
     }
-    target.width = outW;
-    target.height = outH;
-    target.getContext('2d').drawImage(rendered, 0, 0);
-  }).catch(() => { /* decode can reject if it is removed first */ });
+    const el = R.mounted.get(i);
+    target.style.cssText = el.style.cssText;     // a zoom may have moved the page meanwhile
+    el.replaceWith(target);
+    R.mounted.set(i, target);
+    if (!isStrip() && i === R.at) renderAhead();
+  });
+}
+
+// Page mode: once the page on screen is done, the next one is drawn with ArtCNN in the
+// background, so turning to it shows it sharp at once instead of about 0.13 s later. It
+// starts only after the current page, and the GPU runs work in order, so it never delays
+// the page being read.
+let ahead = null;
+
+function renderAhead() {
+  if (isStrip() || scaler !== 'artcnn' || !R.ch) return;
+  const i = R.at + 1;
+  const page = R.ch.pages[i];
+  if (!page) return;
+
+  const box = pageBox(page, 100);               // a turn always opens at fit to screen
+  const dpr = window.devicePixelRatio || 1;
+  const outW = Math.round(box.w * dpr);
+  const outH = Math.round(box.h * dpr);
+  if (!ArtCNN.wants(page.w, page.h, outW, outH)) return;
+  const want = 'artcnn ' + outW + 'x' + outH;
+  if (ahead && ahead.path === R.ch.path && ahead.i === i && ahead.want === want) return;
+
+  const source = new Image();
+  source.src = pageUrl(R.ch.path, i);
+  const canvas = document.createElement('canvas');
+  canvas.width = outW;
+  canvas.height = outH;
+  canvas._source = source;
+  canvas._kind = 'artcnn';
+  ahead = {
+    path: R.ch.path, i, want, source, canvas,
+    done: source.decode().then(() => ArtCNN.render(flatten(source), canvas)).catch(() => false)
+  };
+}
+
+// Puts the page drawn ahead on screen if it is this page at this size. When it is still
+// rendering, the turn waits for it rather than starting the same work again.
+function takeAhead(i, el, source, want) {
+  const a = ahead;
+  if (!a || a.path !== R.ch.path || a.i !== i || a.want !== want) return false;
+  ahead = null;
+  a.done.then(ok => {
+    if (R.mounted.get(i) !== el) return;        // turned again before it finished
+    if (!ok) {
+      source._want = null;
+      paint(i, parseFloat(el.style.width), parseFloat(el.style.height));
+      return;
+    }
+    a.source._want = want;
+    a.canvas.style.cssText = el.style.cssText;
+    el.replaceWith(a.canvas);
+    R.mounted.set(i, a.canvas);
+    renderAhead();
+  });
+  return true;
 }
 
 // A zoom changes the box, so the canvas has to be redrawn at the new size or the browser
@@ -285,11 +420,18 @@ function showPage(n) {
   }
 
   const box = fitPage();
-  if (box) paint(R.at, box.w, box.h);
+  // With ArtCNN on this page, the next one is drawn once this one is done
+  if (box && paint(R.at, box.w, box.h) !== 'artcnn') renderAhead();
   scroller.scrollTop = Math.max(0, (strip.offsetHeight - R.vh) / 2);
   scroller.scrollLeft = Math.max(0, (strip.offsetWidth - R.vw) / 2);
   setWidthReadout();
   updateHud();
+}
+
+// A page's size in page mode at a given zoom, in CSS pixels
+function pageBox(p, pct) {
+  const scale = Math.min(R.vw / p.w, R.vh / p.h) * pct / 100;
+  return { w: Math.round(p.w * scale), h: Math.round(p.h * scale) };
 }
 
 // Resizes the page already on screen. Zooming must not rebuild the image: doing that
@@ -307,10 +449,7 @@ function fitPage() {
     return null;
   }
 
-  const p = R.ch.pages[R.at];
-  const scale = Math.min(R.vw / p.w, R.vh / p.h) * R.pct / 100;
-  const w = Math.round(p.w * scale);
-  const h = Math.round(p.h * scale);
+  const { w, h } = pageBox(R.ch.pages[R.at], R.pct);
   const cw = Math.max(R.vw, w);
   const chh = Math.max(R.vh, h);
   strip.style.width = cw + 'px';
@@ -611,8 +750,9 @@ window.addEventListener('keydown', e => {
   else if (k === 'm') { show(); toggleMode(); }
   else if (k === 'l') {
     show();
-    sharpening = !sharpening;
-    store.set('sharpen', sharpening);
+    scaler = SCALERS[(SCALERS.indexOf(scaler) + 1) % SCALERS.length];
+    store.set('sharpen', scaler);
+    showScaler();
     const here = currentPage();
     clearPages();
     if (isStrip()) render(); else showPage(here);
