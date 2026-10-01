@@ -1,0 +1,24 @@
+#!/bin/sh
+# Refuse a commit whose JavaScript doesn't parse, or whose server changes break
+# the smoke test. Enable once per clone:
+#   git config core.hooksPath .githooks
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+status=0
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-commit: node not found; install Node.js" >&2
+  exit 1
+fi
+
+for f in $(printf '%s\n' "$staged" | grep -E '\.js$'); do
+  node --check "$f" || status=1
+done
+
+if printf '%s\n' "$staged" | grep -qE '^(server\.js|lib/|tools/smoke-test\.sh)'; then
+  tools/smoke-test.sh || status=1
+fi
+
+[ $status -ne 0 ] && printf "\npre-commit: fix the problems above, or commit with --no-verify to skip.\n" >&2
+exit $status

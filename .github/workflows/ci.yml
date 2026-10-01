@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Scripts parse, server smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Every script parses
+        run: |
+          status=0
+          for f in $(git ls-files '*.js'); do
+            node --check "$f" || status=1
+          done
+          exit $status
+      - name: Server smoke test
+        run: tools/smoke-test.sh
