@@ -108,7 +108,7 @@ const MIME = {
   '.webp': 'image/webp', '.gif': 'image/gif', '.avif': 'image/avif',
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
-  '.bin': 'application/octet-stream'
+  '.bin': 'application/octet-stream', '.svg': 'image/svg+xml'
 };
 
 function json(res, body, code = 200) {
