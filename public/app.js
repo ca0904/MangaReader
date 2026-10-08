@@ -648,9 +648,15 @@ if (window.visualViewport) window.visualViewport.addEventListener('resize', onVi
 scroller.addEventListener('wheel', e => {
   if (!e.ctrlKey && !e.metaKey) return;     // a trackpad pinch arrives as ctrl+wheel
   e.preventDefault();
-  // A trackpad sends many small deltas, a mouse wheel one big one. Capping keeps a
-  // single notch from slamming the width to its limit.
-  setWidth(R.pct * Math.exp(-clamp(e.deltaY, -40, 40) * 0.0025), e.clientX, e.clientY);
+  // Zoom speed. Raise PINCH_GAIN if the touchpad still feels slow, lower it if it overshoots.
+  const PINCH_GAIN = 0.01, WHEEL_GAIN = 0.0025;
+  const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 100 : e.deltaY;
+  // A trackpad pinch is a stream of tiny deltas (a few px each) and needs a much higher
+  // gain than a ctrl+mouse-wheel notch.
+  const pinch = Math.abs(dy) < 50;
+  const gain = pinch ? PINCH_GAIN : WHEEL_GAIN;
+  const cap = pinch ? 30 : 40;
+  setWidth(R.pct * Math.exp(-clamp(dy, -cap, cap) * gain), e.clientX, e.clientY);
 }, { passive: false });
 
 scroller.addEventListener('dblclick', () => setWidth(defaultWidth()));
