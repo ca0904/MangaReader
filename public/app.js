@@ -221,41 +221,46 @@ function paintArtCNN(i, source, outW, outH, want) {
 // background, so turning to it shows it sharp at once instead of about 0.13 s later. It
 // starts only after the current page, and the GPU runs work in order, so it never delays
 // the page being read.
-let ahead = null;
+let ahead = new Map();
 
 function renderAhead() {
   if (isStrip() || scaler !== 'artcnn' || !R.ch) return;
-  const i = R.at + 1;
-  const page = R.ch.pages[i];
-  if (!page) return;
+  const keep = new Set();
+  for (const i of [R.at + 1, R.at - 1]) {
+    const page = R.ch.pages[i];
+    if (!page) continue;
 
-  const box = pageBox(page, 100);               // a turn always opens at fit to screen
-  const dpr = window.devicePixelRatio || 1;
-  const outW = Math.round(box.w * dpr);
-  const outH = Math.round(box.h * dpr);
-  if (!ArtCNN.wants(page.w, page.h, outW, outH)) return;
-  const want = 'artcnn ' + outW + 'x' + outH;
-  if (ahead && ahead.path === R.ch.path && ahead.i === i && ahead.want === want) return;
+    const box = pageBox(page, 100);             // a turn always opens at fit to screen
+    const dpr = window.devicePixelRatio || 1;
+    const outW = Math.round(box.w * dpr);
+    const outH = Math.round(box.h * dpr);
+    if (!ArtCNN.wants(page.w, page.h, outW, outH)) continue;
+    const want = 'artcnn ' + outW + 'x' + outH;
+    keep.add(i);
+    const a = ahead.get(i);
+    if (a && a.path === R.ch.path && a.i === i && a.want === want) continue;
 
-  const source = new Image();
-  source.src = pageUrl(R.ch.path, i);
-  const canvas = document.createElement('canvas');
-  canvas.width = outW;
-  canvas.height = outH;
-  canvas._source = source;
-  canvas._kind = 'artcnn';
-  ahead = {
-    path: R.ch.path, i, want, source, canvas,
-    done: source.decode().then(() => ArtCNN.render(flatten(source), canvas)).catch(() => false)
-  };
+    const source = new Image();
+    source.src = pageUrl(R.ch.path, i);
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+    canvas._source = source;
+    canvas._kind = 'artcnn';
+    ahead.set(i, {
+      path: R.ch.path, i, want, source, canvas,
+      done: source.decode().then(() => ArtCNN.render(flatten(source), canvas)).catch(() => false)
+    });
+  }
+  for (const i of [...ahead.keys()]) if (!keep.has(i)) ahead.delete(i);
 }
 
 // Puts the page drawn ahead on screen if it is this page at this size. When it is still
 // rendering, the turn waits for it rather than starting the same work again.
 function takeAhead(i, el, source, want) {
-  const a = ahead;
+  const a = ahead.get(i);
   if (!a || a.path !== R.ch.path || a.i !== i || a.want !== want) return false;
-  ahead = null;
+  ahead.delete(i);
   a.done.then(ok => {
     if (R.mounted.get(i) !== el) return;        // turned again before it finished
     if (!ok) {
