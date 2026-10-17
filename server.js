@@ -72,7 +72,7 @@ function chapter(file) {
   return {
     path: file,
     name: path.basename(file, path.extname(file)),
-    suggest: shape >= 1.56 ? 'strip' : 'page',
+    suggest: (shape >= 1.56 || shape < 1.35) ? 'strip' : 'page',
     shape: Math.round(shape * 100) / 100,
     folder: path.basename(dir),
     number: at + 1,
