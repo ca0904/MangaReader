@@ -153,9 +153,9 @@ body.dragging #target { border-color: var(--riso); }
   color: var(--paper);
 }
 
-#chrome { position: absolute; inset: 0; pointer-events: none; transition: opacity .28s ease; }
-#chrome > * { pointer-events: auto; }
-#reader.idle #chrome { opacity: 0; }
+#chrome { position: absolute; inset: 0; pointer-events: none; }
+#chrome > * { pointer-events: auto; transition: opacity .28s ease; }
+#reader.idle #chrome > * { opacity: 0; }
 #reader.idle #scroller { cursor: none; }
 
 #topbar, #dock {
