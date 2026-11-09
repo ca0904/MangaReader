@@ -757,6 +757,7 @@ window.addEventListener('keydown', e => {
   else if (k === 'ArrowLeft') { hit(); if (!isStrip()) turn(-1); }
   else if (k === 'Home') { hit(); isStrip() ? scroller.scrollTo({ top: 0, behavior: 'smooth' }) : goToPage(0); }
   else if (k === 'End') { hit(); isStrip() ? scroller.scrollTo({ top: R.total, behavior: 'smooth' }) : goToPage(R.ch.pages.length); }
+  else if (k === 'h') { hit(); toggleLock(); }
   else if (k === 'f') { show(); $('#full').click(); }
   else if (k === 'm') { show(); toggleMode(); }
   else if (k === 'l') {
@@ -779,10 +780,21 @@ window.addEventListener('keydown', e => {
 const IDLE_MS = 1250;
 
 let idleTimer;
+let locked = false;
 function poke() {
+  if (locked) return;                      // locked: nothing brings the controls back
   reader.classList.remove('idle');
   clearTimeout(idleTimer);
   idleTimer = setTimeout(() => !scrubbing && !pan && reader.classList.add('idle'), IDLE_MS);
+}
+
+// h hides every control and keeps them hidden until h is pressed again.
+function toggleLock() {
+  locked = !locked;
+  reader.classList.toggle('locked', locked);
+  clearTimeout(idleTimer);
+  if (locked) reader.classList.add('idle');
+  else poke();
 }
 // Controls answer the mouse. Scrolling is not a request to see them, so the wheel and a
 // touch drag leave them alone; on touch a tap brings them back.
