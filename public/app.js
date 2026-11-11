@@ -59,6 +59,7 @@ async function openChapter(file) {
   if (!ch || ch.error) return;
 
   clearPages();
+  resetLock();
   R.ch = ch;
   nextPreloaded = null;
   R.mode = store.get('mode:' + ch.folder) || ch.suggest || 'strip';
@@ -621,6 +622,7 @@ function goBack() {
   reader.hidden = true;
   launch.hidden = false;
   clearPages();
+  resetLock();
   R.ch = null;
 }
 
@@ -795,6 +797,14 @@ function toggleLock() {
   clearTimeout(idleTimer);
   if (locked) reader.classList.add('idle');
   else poke();
+}
+
+// A lock belongs to the chapter it was set in: closing the reader or moving to another
+// chapter drops it. Doesn't poke; the caller decides whether the controls should show.
+function resetLock() {
+  if (!locked) return;
+  locked = false;
+  reader.classList.remove('locked');
 }
 // Controls answer the mouse. Scrolling is not a request to see them, so the wheel and a
 // touch drag leave them alone; on touch a tap brings them back.
